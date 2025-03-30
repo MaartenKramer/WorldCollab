@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Worldbuilding Map Tool</title>
+    <link rel="stylesheet" href="index.css">
+</head>
+<body>
+    <div id="toolbar">
+        <div>
+            <button id="mode-toggle" class="button">Edit Mode</button>
+            <button id="import-bg" class="button">Import Background</button>
+        </div>
+        <div>
+            <button id="save" class="button">Save</button>
+            <button id="load" class="button">Load</button>
+        </div>
+    </div>
+    <div id="canvas-container">
+        <canvas id="map-canvas"></canvas>
+    </div>
+    <div id="popup">
+        <div id="popup-close">&times;</div>
+        <div id="popup-content">
+            <div id="popup-title"></div>
+            <img id="popup-image" />
+            <div id="popup-description"></div>
+            <div id="editor-form" style="display: none;">
+                <label for="location-title">Title:</label>
+                <input type="text" id="location-title">
+                <label for="location-image">Image:</label>
+                <input type="file" id="location-image" accept="image/*">
+                <label for="location-description">Description:</label>
+                <textarea id="location-description" rows="6"></textarea>
+                <button id="update-location" class="button">Update</button>
+            </div>
+        </div>
+    </div>
+    <input type="file" id="bg-file-input" accept="image/*" style="display: none;">
+    <input type="file" id="load-file-input" accept="application/json" style="display: none;">
+    
+    <script src="index.js"></script>
+</body>
+</html>

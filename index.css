@@ -1,0 +1,104 @@
+body {
+    margin: 0;
+    padding: 0;
+    font-family: Arial, sans-serif;
+    overflow: hidden;
+}
+
+#toolbar {
+    background-color: #333;
+    color: white;
+    padding: 10px;
+    display: flex;
+    justify-content: space-between;
+}
+
+#canvas-container {
+    position: relative;
+    width: 100vw;
+    height: calc(100vh - 50px);
+    overflow: auto;
+}
+
+canvas {
+    position: absolute;
+}
+
+.button {
+    background-color: #4CAF50;
+    border: none;
+    color: white;
+    padding: 8px 16px;
+    text-align: center;
+    text-decoration: none;
+    display: inline-block;
+    font-size: 14px;
+    margin: 0 5px;
+    cursor: pointer;
+    border-radius: 4px;
+}
+
+.button:hover {
+    background-color: #45a049;
+}
+
+#mode-toggle {
+    background-color: #2196F3;
+}
+
+#mode-toggle.edit-mode {
+    background-color: #f44336;
+}
+
+#popup {
+    position: absolute;
+    background-color: white;
+    border: 1px solid #ccc;
+    box-shadow: 0 0 10px rgba(0,0,0,0.3);
+    padding: 20px;
+    max-width: 400px;
+    z-index: 100;
+    display: none;
+}
+
+#popup-title {
+    font-size: 1.5em;
+    margin-bottom: 10px;
+    padding-bottom: 5px;
+    border-bottom: 1px solid #ccc;
+    font-weight: bold;
+}
+
+#popup-image {
+    max-width: 100%;
+    height: auto;
+    margin-bottom: 10px;
+}
+
+#popup-description {
+    margin-bottom: 10px;
+}
+
+#popup-close {
+    position: absolute;
+    top: 5px;
+    right: 10px;
+    font-size: 20px;
+    cursor: pointer;
+    font-weight: bold;
+}
+
+#editor-form {
+    margin-top: 10px;
+}
+
+#editor-form input, #editor-form textarea {
+    width: 100%;
+    padding: 5px;
+    margin-bottom: 10px;
+}
+
+#editor-form label {
+    display: block;
+    margin-bottom: 5px;
+}
