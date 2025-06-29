@@ -27,17 +27,14 @@ document.addEventListener('DOMContentLoaded', function() {
     let backgroundImage = null;
     let locations = [];
     let selectedLocation = null;
-    let isDragging = false;
-    let draggedLocation = null;
-    let dragOffsetX = 0;
-    let dragOffsetY = 0;
-
+    
+    // Initialize save system
+    const saveSystem = new SaveSystem();
+    
     // Initialize canvas size
     function resizeCanvas() {
-        if (!backgroundImage) {
-            canvas.width = container.clientWidth;
-            canvas.height = container.clientHeight;
-        }
+        canvas.width = container.clientWidth;
+        canvas.height = container.clientHeight;
         redraw();
     }
     
@@ -55,78 +52,36 @@ document.addEventListener('DOMContentLoaded', function() {
         bgFileInput.click();
     });
     
+    // Loads using the save system
     bgFileInput.addEventListener('change', function(e) {
         if (e.target.files && e.target.files[0]) {
-            const reader = new FileReader();
-            
-            reader.onload = function(event) {
-                const img = new Image();
-                img.onload = function() {
-                    backgroundImage = img;
-                    canvas.width = img.width;
-                    canvas.height = img.height;
-                    redraw();
-                }
-                img.src = event.target.result;
-            }
-            
-            reader.readAsDataURL(e.target.files[0]);
+            saveSystem.loadBackgroundImage(e.target.files[0], function(img) {
+                backgroundImage = img;
+                // Adjust canvas size to match image
+                canvas.width = img.width;
+                canvas.height = img.height;
+                redraw();
+            });
         }
     });
     
-    // Save map data as JSON
+    // Save map data through save.js
     saveBtn.addEventListener('click', function() {
-        const mapData = {
-            locations: locations.map(loc => {
-                return {
-                    x: loc.x,
-                    y: loc.y,
-                    title: loc.title,
-                    image: loc.image,
-                    description: loc.description
-                };
-            })
-        };
-        
-        // Save background image
-        if (backgroundImage) {
-            const tempCanvas = document.createElement('canvas');
-            tempCanvas.width = backgroundImage.width;
-            tempCanvas.height = backgroundImage.height;
-            const tempCtx = tempCanvas.getContext('2d');
-            tempCtx.drawImage(backgroundImage, 0, 0);
-            mapData.backgroundImage = tempCanvas.toDataURL('image/png');
-        }
-        
-        const dataStr = JSON.stringify(mapData, null, 2);
-        const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
-        
-        // Download
-        const exportLink = document.createElement('a');
-        exportLink.setAttribute('href', dataUri);
-        exportLink.setAttribute('download', 'worldmap.json');
-        document.body.appendChild(exportLink);
-        exportLink.click();
-        document.body.removeChild(exportLink);
+        saveSystem.saveMapData(locations, backgroundImage);
     });
     
-    // Load map data from JSON
+    // Load map data through save.js
     loadBtn.addEventListener('click', function() {
         loadFileInput.click();
     });
     
     loadFileInput.addEventListener('change', function(e) {
         if (e.target.files && e.target.files[0]) {
-            const reader = new FileReader();
-            
-            reader.onload = function(event) {
-                try {
-                    const mapData = JSON.parse(event.target.result);
-                    
-                    // Load locations
+            saveSystem.loadMapData(e.target.files[0], 
+                function(mapData) {
                     locations = mapData.locations || [];
                     
-                    // Load background image
+                    // Load background image if available
                     if (mapData.backgroundImage) {
                         const img = new Image();
                         img.onload = function() {
@@ -139,120 +94,69 @@ document.addEventListener('DOMContentLoaded', function() {
                     } else {
                         redraw();
                     }
-                } catch (error) {
-                    console.error('Error loading map data:', error);
-                    alert('Failed to load map data: ' + error.message);
-                }
-            }
-            
-            reader.readAsText(e.target.files[0]);
+                },
+                    // Gives error if there is missing data
+                    function(error) {
+                        alert('Failed to load map data: ' + error.message);
+                    }
+            );
         }
     });
     
-    canvas.addEventListener('contextmenu', function(e) {
-        e.preventDefault();
-    });
-
-    canvas.addEventListener('mousedown', function(e) {
+    // Handle canvas clicks for adding or selecting locations
+    canvas.addEventListener('click', function(e) {
         const rect = canvas.getBoundingClientRect();
         const x = e.clientX - rect.left;
         const y = e.clientY - rect.top;
         
+        // Find if user clicked on an existing location
         let clickedLocation = null;
         for (let i = 0; i < locations.length; i++) {
             const loc = locations[i];
             const distance = Math.sqrt(Math.pow(x - loc.x, 2) + Math.pow(y - loc.y, 2));
             
-            if (distance <= 10) {
+            if (distance <= 10) { // 10px radius for clicking on location
                 clickedLocation = loc;
                 break;
             }
         }
         
         if (isEditMode) {
-            
-            // Right click to delete marker
-            if (e.button === 2) {
-                if (clickedLocation) {
-                    const index = locations.indexOf(clickedLocation);
-                    if (index > -1) {
-                        locations.splice(index, 1);
-                        redraw();
-                    }
-                }
+            if (clickedLocation) {
+                // Edit existing location
+                selectedLocation = clickedLocation;
+                showPopupEditor(x, y);
+            } else if (backgroundImage) {
+                // Add new location
+                const newLocation = {
+                    x: x,
+                    y: y,
+                    title: 'New Location',
+                    description: 'Description goes here...',
+                    image: ''
+                };
+                locations.push(newLocation);
+                selectedLocation = newLocation;
+                showPopupEditor(x, y);
+                redraw();
             }
-            
-            // Middle click to start dragging
-            if (e.button === 1 && clickedLocation) {
-                isDragging = true;
-                draggedLocation = clickedLocation;
-                dragOffsetX = x - clickedLocation.x;
-                dragOffsetY = y - clickedLocation.y;
-            }
-            
-            // Left click to edit/add
-            if (e.button === 0) {
-                if (clickedLocation) {
-
-                    // Edit existing location
-                    selectedLocation = clickedLocation;
-                    showPopupEditor(x, y);
-                } 
-                else if (backgroundImage) {
-                    
-                    // Add new location
-                    const newLocation = {
-                        x: x,
-                        y: y,
-                        title: 'New Location',
-                        description: 'Description goes here...',
-                        image: ''
-                    };
-                    locations.push(newLocation);
-                    selectedLocation = newLocation;
-                    showPopupEditor(x, y);
-                    redraw();
-                }
-            }
-        } 
-        else if (clickedLocation) {
-            
+        } else if (clickedLocation) {
             // View location in read mode
             selectedLocation = clickedLocation;
             showPopupViewer(x, y);
         }
     });
-
-    canvas.addEventListener('mousemove', function(e) {
-        if (!isEditMode || !isDragging) return;
-
-        const rect = canvas.getBoundingClientRect();
-        const x = e.clientX - rect.left;
-        const y = e.clientY - rect.top;
-
-        draggedLocation.x = x - dragOffsetX;
-        draggedLocation.y = y - dragOffsetY;
-
-        redraw();
-    });
-
-    canvas.addEventListener('mouseup', function(e) {
-        if (e.button === 1) {
-            isDragging = false;
-            draggedLocation = null;
-        }
-    });
     
-    // Close pop up
+    // Close popup when clicking the X
     popupClose.addEventListener('click', closePopup);
     
-    // Update location info
+    // Update location data from editor form
     updateLocationBtn.addEventListener('click', function() {
         if (selectedLocation) {
             selectedLocation.title = locationTitle.value;
             selectedLocation.description = locationDescription.value;
             
-            // Upload image
+            // Handle image upload
             if (locationImage.files && locationImage.files[0]) {
                 const reader = new FileReader();
                 reader.onload = function(e) {
@@ -268,12 +172,15 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
     
+    // Show popup with editor form
     function showPopupEditor(x, y) {
         positionPopup(x, y);
         
+        // Set form values
         locationTitle.value = selectedLocation.title;
         locationDescription.value = selectedLocation.description;
         
+        // Show editor form, hide viewer elements
         popupTitle.style.display = 'none';
         popupImage.style.display = 'none';
         popupDescription.style.display = 'none';
@@ -282,22 +189,22 @@ document.addEventListener('DOMContentLoaded', function() {
         popup.style.display = 'block';
     }
     
-    // Show pop up with location information
+    // Show popup with location information
     function showPopupViewer(x, y) {
         positionPopup(x, y);
         
+        // Set viewer content
         popupTitle.textContent = selectedLocation.title;
         popupDescription.textContent = selectedLocation.description;
         
         if (selectedLocation.image) {
             popupImage.src = selectedLocation.image;
             popupImage.style.display = 'block';
-        } 
-        
-        else {
+        } else {
             popupImage.style.display = 'none';
         }
         
+        // Show viewer elements, hide editor form
         popupTitle.style.display = 'block';
         popupDescription.style.display = 'block';
         editorForm.style.display = 'none';
@@ -305,23 +212,26 @@ document.addEventListener('DOMContentLoaded', function() {
         popup.style.display = 'block';
     }
     
-    // Position pop up
+    // Position popup near the clicked location
     function positionPopup(x, y) {
         const popupWidth = 400;
         const popupHeight = 300;
         
+        // Try to position the popup so it's fully visible
         let popupX = x + 10;
         let popupY = y + 10;
         
+        // Adjust if the popup would go off the right edge
         if (popupX + popupWidth > canvas.width) {
             popupX = x - popupWidth - 10;
         }
         
+        // Adjust if the popup would go off the bottom edge
         if (popupY + popupHeight > canvas.height) {
             popupY = y - popupHeight - 10;
         }
         
-        // Make sure pop up is on screen
+        // Ensure popup is not positioned off-screen
         popupX = Math.max(0, popupX);
         popupY = Math.max(0, popupY);
         
@@ -329,23 +239,21 @@ document.addEventListener('DOMContentLoaded', function() {
         popup.style.top = popupY + 'px';
     }
     
-    // Close pop up
+    // Close the popup
     function closePopup() {
         popup.style.display = 'none';
         selectedLocation = null;
     }
     
-    // Draw everything
+    // Draw everything on the canvas
     function redraw() {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         
-        // Draw background image
+        // Draw background image if available
         if (backgroundImage) {
             ctx.drawImage(backgroundImage, 0, 0);
-        } 
-        
-        else {
-            // Draw placeholder
+        } else {
+            // Draw placeholder background
             ctx.fillStyle = '#f0f0f0';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
             ctx.fillStyle = '#ccc';
@@ -354,18 +262,16 @@ document.addEventListener('DOMContentLoaded', function() {
             ctx.fillText('Import a background image', canvas.width / 2, canvas.height / 2);
         }
         
-        // Draw locations
+        // Draw all locations
         locations.forEach(function(loc) {
-
-            // Draw location marker
+            // Draw location marker (circle)
             ctx.beginPath();
             ctx.arc(loc.x, loc.y, 6, 0, Math.PI * 2);
             
+            // Different styling for edit vs read mode
             if (isEditMode) {
                 ctx.fillStyle = 'rgba(255, 0, 0, 0.7)';
-            } 
-            
-            else {
+            } else {
                 ctx.fillStyle = 'rgba(0, 100, 255, 0.7)';
             }
             
@@ -373,13 +279,24 @@ document.addEventListener('DOMContentLoaded', function() {
             ctx.strokeStyle = 'white';
             ctx.lineWidth = 2;
             ctx.stroke();
+            
+            // Draw location name if in read mode
+            if (!isEditMode) {
+                ctx.fillStyle = 'black';
+                ctx.font = '12px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText(loc.title, loc.x, loc.y - 12);
+            }
         });
     }
     
+    // Handle window resize
     window.addEventListener('resize', resizeCanvas);
     
+    // Initial setup
     resizeCanvas();
     
+    // Set initial mode
     modeToggle.textContent = isEditMode ? 'Edit Mode' : 'Read Mode';
     modeToggle.classList.toggle('edit-mode', isEditMode);
 });

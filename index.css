@@ -22,6 +22,7 @@ body {
 
 canvas {
     position: absolute;
+    cursor: pointer;
 }
 
 .button {
